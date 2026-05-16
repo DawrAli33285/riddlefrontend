@@ -1,0 +1,7 @@
+export const DEFAULT_LEVELS = [
+    { id: 1, title: "MISSION ALPHA",   riddle: "Where iron horses once rested, now only silence remains. Look beneath the rusted sign where the old depot stood.", hint: "Think: abandoned train station", code: "IRON01",   location: "Old Train Depot, Downtown" },
+    { id: 2, title: "MISSION BRAVO",   riddle: "The guardian of knowledge stands tall, flanked by stone lions. The answer lies where borrowers once signed their names.", hint: "Think: public library entrance", code: "BOOK02",   location: "Central Public Library" },
+    { id: 3, title: "MISSION CHARLIE", riddle: "Where children laugh and seasons change, find the oldest oak. Its roots hold the secret you seek.", hint: "Think: city park, old tree", code: "OAK03",    location: "Riverside City Park" },
+    { id: 4, title: "MISSION DELTA",   riddle: "Beneath the bridge where two rivers meet, a stone marker was placed in 1923. Find the number etched in its face.", hint: "Think: river confluence, historic marker", code: "RIVER04",  location: "Twin Rivers Bridge" },
+    { id: 5, title: "MISSION ECHO",    riddle: "The final challenge awaits at the place where the city began. The founder's plaque holds your last code.", hint: "Think: city founding monument", code: "ORIGIN05", location: "Founders Square Monument" },
+  ];

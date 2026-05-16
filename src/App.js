@@ -1,25 +1,45 @@
-import logo from './logo.svg';
-import './App.css';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import { BASE_URL } from "./baseurl";
+import { saveUnlocked, saveCompleted, loadCompleted } from "./data/gameData";
+import LandingPage from "./components/LandingPage";
 
-function App() {
+export default function App() {
+  const navigate = useNavigate();
+  const [unlocked, setUnlocked] = useState(!!localStorage.getItem("token"));
+  const [totalMissions, setTotalMissions] = useState(5);
+  const [totalMissionLoading, setTotalMissionLoading] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    setTotalMissionLoading(true);
+    axios.get(`${BASE_URL}/user/progress`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).then(res => {
+      setTotalMissions(res.data.total_missions);
+      setTotalMissionLoading(false);
+    }).catch(() => setTotalMissionLoading(false));
+  }, []);
+
+  const handlePayment = () => {
+    saveUnlocked(true);
+    setUnlocked(true);
+    navigate("/game");
+  };
+
+  const handleResume = () => {
+    navigate("/game");
+  };
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <LandingPage
+      unlocked={unlocked}
+      onJoin={handlePayment}
+      onResume={handleResume}
+      totalMissions={totalMissions}
+      totalMissionLoading={totalMissionLoading}
+    />
   );
 }
-
-export default App;

@@ -101,6 +101,18 @@ export default function LevelCard({ level, index, onChange, onDelete }) {
               </div>
             </div>
 
+            <div>
+    <label className="flex items-center gap-1.5 text-[10px] font-mono tracking-widest mb-2" style={{ color: C }}>
+        <Zap size={10} /> GOOGLE MAP LINK
+    </label>
+    <input
+        value={local.google_map_link || ""}
+        onChange={e => setLocal(v => ({ ...v, google_map_link: e.target.value }))}
+        onBlur={handleBlur}
+        placeholder="https://maps.google.com/..."
+        className="w-full bg-black/40 border border-[rgba(0,162,206,0.2)] rounded-lg px-3 py-2 text-xs font-mono text-slate-300 outline-none focus:border-[rgba(0,162,206,0.5)] transition-colors"
+    />
+</div>
           </div>
         </div>
       )}

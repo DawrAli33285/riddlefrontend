@@ -39,7 +39,7 @@ const [levels, setLevels] = useState([]);
 const [fetchError, setFetchError] = useState("");
 const [stats, setStats] = useState({});
 const [createModal, setCreateModal] = useState(false);
-const [newRiddle, setNewRiddle] = useState({ mission_number: "", riddle: "", secret_code: "", tip: "" });
+const [newRiddle, setNewRiddle] = useState({ mission_number: "", riddle: "", secret_code: "", tip: "", google_map_link: "" });
 const [createError, setCreateError] = useState("");
 const [creating, setCreating] = useState(false);
 const [deleteConfirm, setDeleteConfirm] = useState(null); 
@@ -107,7 +107,7 @@ setStats(statsRes.data);
         const updated = [...levels, res.data.riddle].sort((a, b) => a.mission_number - b.mission_number);
         setLevels(updated);
         setCreateModal(false);
-        setNewRiddle({ mission_number: "", riddle: "", secret_code: "", tip: "" });
+        setNewRiddle({ mission_number: "", riddle: "", secret_code: "", tip: "", google_map_link: "" });
     } catch (err) {
         setCreateError(err.response?.data?.error || "Failed to create mission.");
     } finally {
@@ -247,7 +247,7 @@ const saveAll = async () => {
 
       {createModal && (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 backdrop-blur-sm">
-        <div className="rounded-xl p-6 max-w-lg w-full mx-4" style={{ background: "#0d1b2e", border: "1px solid rgba(0,162,206,0.4)", boxShadow: "0 0 40px rgba(0,162,206,0.15)" }}>
+<div className="rounded-xl p-6 max-w-lg w-full mx-4 overflow-y-auto" style={{ background: "#0d1b2e", border: "1px solid rgba(0,162,206,0.4)", boxShadow: "0 0 40px rgba(0,162,206,0.15)", maxHeight: "90vh" }}>
             <div className="flex items-center gap-2 mb-5">
                 <Zap size={14} color={C} />
                 <span className="text-sm font-mono font-bold tracking-widest" style={{ color: C }}>CREATE NEW MISSION</span>
@@ -289,6 +289,15 @@ const saveAll = async () => {
                         style={{ letterSpacing: "3px" }}
                     />
                 </div>
+                <div>
+                    <label className="text-[10px] font-mono tracking-widest text-slate-400 mb-1 block">GOOGLE MAP LINK</label>
+                    <input
+                        value={newRiddle.google_map_link}
+                        onChange={e => setNewRiddle(v => ({ ...v, google_map_link: e.target.value }))}
+                        placeholder="https://maps.google.com/..."
+                        className="w-full bg-black/40 border border-[rgba(0,162,206,0.2)] rounded-lg px-3 py-2 text-xs font-mono text-slate-300 outline-none"
+                    />
+                </div>
             </div>
 
             {createError && (
@@ -303,7 +312,7 @@ const saveAll = async () => {
                     style={{ background: creating ? "rgba(0,162,206,0.3)" : C, color: "#0a1628", cursor: creating ? "not-allowed" : "pointer" }}>
                     {creating ? "CREATING..." : "CREATE MISSION"}
                 </button>
-                <button onClick={() => { setCreateModal(false); setCreateError(""); setNewRiddle({ mission_number: "", riddle: "", secret_code: "", tip: "" }); }}
+                <button onClick={() => { setCreateModal(false); setCreateError(""); setNewRiddle({ mission_number: "", riddle: "", secret_code: "", tip: "", google_map_link: "" }); }}
                     className="flex-1 py-2 rounded-lg text-xs font-mono text-slate-400 border border-white/10 hover:border-white/20 transition-colors">
                     CANCEL
                 </button>

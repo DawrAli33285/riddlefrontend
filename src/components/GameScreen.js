@@ -115,7 +115,8 @@ export default function GameScreen({ mission, currentLevel, completedMissions, t
   );
 
   if (!mission) return null;
-
+console.log("MISSION")
+console.log(mission)
   return (
     <div style={{ minHeight: "100vh" }}>
       <nav className="glass" style={{ position: "sticky", top: 0, zIndex: 50, borderLeft: "none", borderRight: "none", borderTop: "none" }}>
@@ -182,7 +183,22 @@ export default function GameScreen({ mission, currentLevel, completedMissions, t
               )}
             </div>
 
+            {mission.google_map_link && (
+              <div style={{ marginBottom: 28 }}>
+<a
+                 href={mission.google_map_link.startsWith("http") ? mission.google_map_link : `https://${mission.google_map_link}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, letterSpacing: "2px", color: C, fontFamily: "'JetBrains Mono', monospace", background: CDIM, border: "1px solid rgba(0,162,206,0.3)", borderRadius: 6, padding: "8px 14px", cursor: "pointer", textDecoration: "none" }}
+                >
+                  <MapPin size={12} color={C} />
+                  VIEW LOCATION ON MAP ↗
+                </a>
+              </div>
+            )}
+
             <CodeInput onSubmit={onSubmitCode} levelId={currentLevel} />
+
           </div>
         </div>
 

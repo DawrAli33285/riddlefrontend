@@ -14,27 +14,25 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { SocketProvider } from './context/SocketContext';
 
-const stripePromise = loadStripe('pk_test_51OwuO4LcfLzcwwOYdssgGfUSfOgWT1LwO6ewi3CEPewY7WEL9ATqH6WJm3oAcLDA3IgUvVYLVEBMIEu0d8fUwhlw009JwzEYmV');
+const stripePromise = loadStripe('pk_test_51TV6kqGW6bY577o5j9lGAPVRXSmCadomV8GZTXWOEsiQj1fBjoXdojc532R1WIrKSWNWHTal7pWapDPeoHKnz9B400ZcH4OH9p');
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
-  <React.StrictMode>
+  
     <Elements stripe={stripePromise}>
       <BrowserRouter>
-        <Routes>
-          <Route path="/"              element={<SocketProvider>
-            <App />
-          </SocketProvider>} />
-          <Route path="/game"          element={<ProtectedRoute><SocketProvider>
-            <GamePage /></SocketProvider></ProtectedRoute>} />
-          <Route path="/victory"       element={<ProtectedRoute><SocketProvider>
-            <VictoryPage /></SocketProvider></ProtectedRoute>} />
-          <Route path="/admin"         element={<AdminLoginPage />} />
-          <Route path="/admin/dashboard" element={<AdminProtectedRoute><AdminDashboardPage /></AdminProtectedRoute>} />
-        </Routes>
+        <SocketProvider>
+          <Routes>
+            <Route path="/"                  element={<App />} />
+            <Route path="/game"              element={<ProtectedRoute><GamePage /></ProtectedRoute>} />
+            <Route path="/victory"           element={<ProtectedRoute><VictoryPage /></ProtectedRoute>} />
+            <Route path="/admin"             element={<AdminLoginPage />} />
+            <Route path="/admin/dashboard"   element={<AdminProtectedRoute><AdminDashboardPage /></AdminProtectedRoute>} />
+          </Routes>
+        </SocketProvider>
       </BrowserRouter>
     </Elements>
-  </React.StrictMode>
+
 );
 
 reportWebVitals();

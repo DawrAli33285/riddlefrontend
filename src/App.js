@@ -7,7 +7,7 @@ import LandingPage from "./components/LandingPage";
 
 export default function App() {
   const navigate = useNavigate();
-  const [unlocked, setUnlocked] = useState(!!localStorage.getItem("token"));
+  const [unlocked, setUnlocked] = useState(false); // don't trust token presence alone
   const [totalMissions, setTotalMissions] = useState(5);
   const [totalMissionLoading, setTotalMissionLoading] = useState(false);
 
@@ -19,10 +19,10 @@ export default function App() {
       headers: { Authorization: `Bearer ${token}` }
     }).then(res => {
       setTotalMissions(res.data.total_missions);
+      setUnlocked(!!res.data.game_unlocked); // backend is source of truth
       setTotalMissionLoading(false);
     }).catch(() => setTotalMissionLoading(false));
   }, []);
-
   const handlePayment = () => {
     saveUnlocked(true);
     setUnlocked(true);

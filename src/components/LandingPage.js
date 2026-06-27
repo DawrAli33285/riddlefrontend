@@ -267,6 +267,7 @@ export default function LandingPage({
   const [teamName, setTeamName] = useState("");
   const [showPayModal, setShowPayModal] = useState(false);
   const [cardError, setCardError] = useState("");
+  const [pendingToken, setPendingToken] = useState(null); // 👈 NEW
 
   const stripe = useStripe();
   const elements = useElements();
@@ -286,20 +287,22 @@ export default function LandingPage({
     if (!email.trim() || !teamName.trim()) return;
     setPaying(true);
     setCardError("");
-
+  
     try {
       const authRes = await axios.post(`${BASE_URL}/user/auth`, {
         email,
         team_name: teamName,
       });
-
+  
       const { token, game_unlocked } = authRes.data;
-      localStorage.setItem("token", token);
-
+  
       if (game_unlocked) {
+        localStorage.setItem("token", token);
+        window.dispatchEvent(new Event("auth-changed"));
         setPaying(false);
         onJoin();
       } else {
+        setPendingToken(token); // keep in memory only, NOT localStorage yet
         setPaying(false);
         setShowPayModal(true);
       }
@@ -309,32 +312,36 @@ export default function LandingPage({
     }
   };
 
+
   const handlePay = async () => {
-    if (!stripe || !elements) return;
+    if (!stripe || !elements || !pendingToken) return;
     setPaying(true);
     setCardError("");
-
+  
     const card = elements.getElement(CardElement);
     const { error, paymentMethod } = await stripe.createPaymentMethod({
       type: "card",
       card,
       billing_details: { email },
     });
-
+  
     if (error) {
       setCardError(error.message);
       setPaying(false);
       return;
     }
-
+  
     try {
-      const token = localStorage.getItem("token");
       await axios.post(
         `${BASE_URL}/user/pay`,
         { payment_method_id: paymentMethod.id },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${pendingToken}` } }
       );
-
+  
+      // payment confirmed — safe to persist now
+      localStorage.setItem("token", pendingToken);
+      window.dispatchEvent(new Event("auth-changed"));
+  
       setPaying(false);
       setShowPayModal(false);
       onJoin();
@@ -345,6 +352,7 @@ export default function LandingPage({
       setPaying(false);
     }
   };
+  
 
   const CARD_STYLE = {
     style: {

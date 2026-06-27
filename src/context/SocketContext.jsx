@@ -5,21 +5,29 @@ import { BASE_URL } from "../baseurl";
 const SocketContext = createContext(null);
 
 export function SocketProvider({ children }) {
-  const [socket, setSocket] = useState(null); // ✅ state instead of ref
+  const [socket, setSocket] = useState(null);
+  const [token, setToken] = useState(() => localStorage.getItem("token"));
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
-    const newSocket = io(BASE_URL);
-    newSocket.emit("user_connected", { token });
-    setSocket(newSocket); // ✅ triggers re-render when ready
-
+    const syncToken = () => setToken(localStorage.getItem("token"));
+    window.addEventListener("storage", syncToken);
+    window.addEventListener("auth-changed", syncToken);
     return () => {
-      newSocket.disconnect();
-      setSocket(null);
+      window.removeEventListener("storage", syncToken);
+      window.removeEventListener("auth-changed", syncToken);
     };
   }, []);
+
+  useEffect(() => {
+    if (!token) {
+      setSocket(null);
+      return;
+    }
+    const newSocket = io(BASE_URL);
+    newSocket.emit("user_connected", { token });
+    setSocket(newSocket);
+    return () => newSocket.disconnect();
+  }, [token]);
 
   return (
     <SocketContext.Provider value={socket}>

@@ -38,37 +38,8 @@ function TerminalWidget() {
           gap: 6,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              background: "#4ade80",
-              display: "inline-block",
-              animation: "pulse 2s infinite",
-            }}
-          />
-          <span
-            style={{
-              fontSize: 11,
-              color: C,
-              fontFamily: "'JetBrains Mono', monospace",
-              letterSpacing: "2px",
-            }}
-          >
-            SIGNAL ACTIVE
-          </span>
-        </div>
-        <span
-          style={{
-            fontSize: 11,
-            color: "#64748b",
-            fontFamily: "'JetBrains Mono', monospace",
-          }}
-        >
-          GRID 47.21 / -122.34
-        </span>
+       
+      
       </div>
 
       <div
@@ -129,29 +100,7 @@ function TerminalWidget() {
         </span>
       </div>
 
-      <div style={{ padding: "12px 16px 16px", overflowX: "auto" }}>
-        {TERMINAL_LINES.map((line, i) => (
-          <div
-            key={i}
-            style={{
-              fontSize: 11,
-              fontFamily: "'JetBrains Mono', monospace",
-              marginBottom: 4,
-              opacity: visibleLines > i ? 1 : 0,
-              transition: "opacity 0.3s",
-              whiteSpace: "nowrap",
-            }}
-          >
-            <span style={{ color: "#64748b" }}>{line.text}</span>
-            <span
-              style={{ color: i === 2 ? C : "#4ade80" }}
-              className={i === 2 ? "animate-blink" : ""}
-            >
-              {line.suffix}
-            </span>
-          </div>
-        ))}
-      </div>
+      
     </div>
   );
 }
@@ -352,7 +301,7 @@ export default function LandingPage({
       setPaying(false);
     }
   };
-  
+
 
   const CARD_STYLE = {
     style: {

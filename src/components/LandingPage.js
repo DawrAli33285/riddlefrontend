@@ -2,7 +2,12 @@ import { useState, useEffect } from "react";
 import { Compass, Lock, Shield, ChevronRight, Zap } from "lucide-react";
 import axios from "axios";
 import { BASE_URL } from "../baseurl";
-import { useStripe, useElements, CardElement } from "@stripe/react-stripe-js";
+import {
+  useStripe,
+  useElements,
+  CardElement,
+  PaymentRequestButtonElement,
+} from "@stripe/react-stripe-js";
 
 const C = "#00a2ce";
 const CGLOW = "rgba(0,162,206,0.5)";
@@ -37,10 +42,7 @@ function TerminalWidget() {
           flexWrap: "wrap",
           gap: 6,
         }}
-      >
-       
-      
-      </div>
+      ></div>
 
       <div
         style={{
@@ -99,8 +101,6 @@ function TerminalWidget() {
           Explore. Discover. Play.
         </span>
       </div>
-
-      
     </div>
   );
 }
@@ -216,7 +216,11 @@ export default function LandingPage({
   const [teamName, setTeamName] = useState("");
   const [showPayModal, setShowPayModal] = useState(false);
   const [cardError, setCardError] = useState("");
-  const [pendingToken, setPendingToken] = useState(null); // 👈 NEW
+  const [pendingToken, setPendingToken] = useState(null);
+
+  // Apple Pay / Google Pay state
+  const [paymentRequest, setPaymentRequest] = useState(null);
+  const [canUseWalletPay, setCanUseWalletPay] = useState(false);
 
   const stripe = useStripe();
   const elements = useElements();
@@ -232,26 +236,90 @@ export default function LandingPage({
     }
   }, []);
 
+  // Set up the Stripe Payment Request (Apple Pay / Google Pay)
+  useEffect(() => {
+    if (!stripe || !showPayModal) return;
+  
+    const pr = stripe.paymentRequest({
+      country: "US", // must match your Stripe account's country
+      currency: "usd",
+      total: {
+        label: "SpotHunt Challenge Entry",
+        amount: 900, // $9.00 in cents — keep in sync with backend price
+      },
+      requestPayerName: true,
+      requestPayerEmail: true,
+    });
+  
+    // Check availability of the Payment Request API (Apple Pay / Google Pay / Link)
+    pr.canMakePayment().then((result) => {
+      if (result) {
+        setPaymentRequest(pr);
+        setCanUseWalletPay(true);
+      } else {
+        setPaymentRequest(null);
+        setCanUseWalletPay(false);
+      }
+    });
+
+    pr.on("paymentmethod", async (ev) => {
+      if (!pendingToken) {
+        ev.complete("fail");
+        return;
+      }
+      setPaying(true);
+      setCardError("");
+
+      try {
+        await axios.post(
+          `${BASE_URL}/user/pay`,
+          { payment_method_id: ev.paymentMethod.id },
+          { headers: { Authorization: `Bearer ${pendingToken}` } }
+        );
+
+        ev.complete("success");
+
+        localStorage.setItem("token", pendingToken);
+        window.dispatchEvent(new Event("auth-changed"));
+
+        setPaying(false);
+        setShowPayModal(false);
+        onJoin();
+      } catch (err) {
+        ev.complete("fail");
+        setCardError(
+          err.response?.data?.error || "Payment failed, please try again"
+        );
+        setPaying(false);
+      }
+    });
+
+    return () => {
+      pr.off("paymentmethod");
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stripe, showPayModal, pendingToken]);
+
   const handleJoin = async () => {
     if (!email.trim() || !teamName.trim()) return;
     setPaying(true);
     setCardError("");
-  
+
     try {
       const authRes = await axios.post(`${BASE_URL}/user/auth`, {
         email,
         team_name: teamName,
       });
-  
+
       const { token, game_unlocked } = authRes.data;
-  
+
       if (game_unlocked) {
         localStorage.setItem("token", token);
         window.dispatchEvent(new Event("auth-changed"));
         setPaying(false);
         onJoin();
       } else {
-        setPendingToken(token); // keep in memory only, NOT localStorage yet
+        setPendingToken(token);
         setPaying(false);
         setShowPayModal(true);
       }
@@ -261,36 +329,34 @@ export default function LandingPage({
     }
   };
 
-
   const handlePay = async () => {
     if (!stripe || !elements || !pendingToken) return;
     setPaying(true);
     setCardError("");
-  
+
     const card = elements.getElement(CardElement);
     const { error, paymentMethod } = await stripe.createPaymentMethod({
       type: "card",
       card,
       billing_details: { email },
     });
-  
+
     if (error) {
       setCardError(error.message);
       setPaying(false);
       return;
     }
-  
+
     try {
       await axios.post(
         `${BASE_URL}/user/pay`,
         { payment_method_id: paymentMethod.id },
         { headers: { Authorization: `Bearer ${pendingToken}` } }
       );
-  
-      // payment confirmed — safe to persist now
+
       localStorage.setItem("token", pendingToken);
       window.dispatchEvent(new Event("auth-changed"));
-  
+
       setPaying(false);
       setShowPayModal(false);
       onJoin();
@@ -302,7 +368,6 @@ export default function LandingPage({
     }
   };
 
-
   const CARD_STYLE = {
     style: {
       base: {
@@ -313,6 +378,15 @@ export default function LandingPage({
         "::placeholder": { color: "#64748b" },
       },
       invalid: { color: "#f87171" },
+    },
+  };
+
+  // Styling for the Payment Request Button (Apple/Google Pay)
+  const PAYMENT_REQUEST_BUTTON_STYLE = {
+    paymentRequestButton: {
+      type: "default", // "default" | "donate" | "buy"
+      theme: "dark", // "dark" | "light" | "light-outline"
+      height: "48px",
     },
   };
 
@@ -604,7 +678,7 @@ export default function LandingPage({
             </div>
           </div>
 
-          {/* Right col — terminal (hidden on very small screens via CSS) */}
+          {/* Right col — terminal */}
           <div className="sh-terminal-wrap animate-fade-in">
             <TerminalWidget />
           </div>
@@ -766,6 +840,51 @@ export default function LandingPage({
                 $9
               </div>
             </div>
+
+            {/* Apple Pay / Google Pay button — shown only if supported */}
+            {canUseWalletPay && paymentRequest && (
+              <div>
+                <PaymentRequestButtonElement
+                  options={{
+                    paymentRequest,
+                    style: PAYMENT_REQUEST_BUTTON_STYLE,
+                  }}
+                />
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    margin: "16px 0",
+                  }}
+                >
+                  <div
+                    style={{
+                      flex: 1,
+                      height: 1,
+                      background: "rgba(255,255,255,0.1)",
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 10,
+                      color: "#64748b",
+                      fontFamily: "'JetBrains Mono', monospace",
+                      letterSpacing: "1px",
+                    }}
+                  >
+                    OR PAY WITH CARD
+                  </span>
+                  <div
+                    style={{
+                      flex: 1,
+                      height: 1,
+                      background: "rgba(255,255,255,0.1)",
+                    }}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Card Element */}
             <div>

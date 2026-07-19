@@ -159,8 +159,10 @@ export default function LandingPage({
   const [cardError, setCardError] = useState("");
   const [pendingToken, setPendingToken] = useState(null);
 
-  
   const [paymentRequest, setPaymentRequest] = useState(null);
+  // Only true when Apple Pay OR Google Pay is specifically available
+  // (not just Stripe Link, which also makes canMakePayment() truthy
+  // but renders an invisible button)
   const [canUseWalletPay, setCanUseWalletPay] = useState(false);
 
   const pendingTokenRef = useRef(null);
@@ -189,15 +191,17 @@ export default function LandingPage({
       currency: "usd",
       total: {
         label: "SpotHunt Challenge Entry",
-        amount: 900, 
+        amount: 900,
       },
       requestPayerName: true,
       requestPayerEmail: true,
     });
 
-   
     pr.canMakePayment().then((result) => {
-      if (result) {
+      // Only show the wallet button for Apple Pay or Google Pay.
+      // result can also be { link: true } for Stripe Link — that renders
+      // an invisible button, so we explicitly exclude it here.
+      if (result && (result.applePay || result.googlePay)) {
         setPaymentRequest(pr);
         setCanUseWalletPay(true);
       }
@@ -325,7 +329,7 @@ export default function LandingPage({
 
   return (
     <div style={{ minHeight: "100vh" }}>
-    
+      {/* ── NAV ── */}
       <nav
         className="glass"
         style={{
@@ -369,25 +373,10 @@ export default function LandingPage({
               </svg>
             </div>
             <div>
-              <div
-                style={{
-                  fontFamily: "'Orbitron', sans-serif",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: C,
-                  letterSpacing: "3px",
-                }}
-              >
+              <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 13, fontWeight: 700, color: C, letterSpacing: "3px" }}>
                 SPOTHUNT
               </div>
-              <div
-                style={{
-                  fontSize: 10,
-                  color: "#64748b",
-                  letterSpacing: "2px",
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}
-              >
+              <div style={{ fontSize: 10, color: "#64748b", letterSpacing: "2px", fontFamily: "'JetBrains Mono', monospace" }}>
                 THE CHALLENGE
               </div>
             </div>
@@ -428,7 +417,7 @@ export default function LandingPage({
         </div>
       </nav>
 
-      
+      {/* ── MAIN CONTENT ── */}
       <div
         className="sh-page-wrap"
         style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 32px" }}
@@ -447,14 +436,7 @@ export default function LandingPage({
               }}
             >
               <Zap size={12} color={C} />
-              <span
-                style={{
-                  fontSize: 11,
-                  color: C,
-                  letterSpacing: "2px",
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}
-              >
+              <span style={{ fontSize: 11, color: C, letterSpacing: "2px", fontFamily: "'JetBrains Mono', monospace" }}>
                 LIVE OPERATION
               </span>
             </div>
@@ -478,29 +460,13 @@ export default function LandingPage({
               ))}
             </div>
 
-            <p
-              style={{
-                color: "#94a3b8",
-                fontSize: 13,
-                lineHeight: 1.8,
-                maxWidth: 420,
-                marginBottom: 32,
-                fontFamily: "'JetBrains Mono', monospace",
-              }}
-            >
+            <p style={{ color: "#94a3b8", fontSize: 13, lineHeight: 1.8, maxWidth: 420, marginBottom: 32, fontFamily: "'JetBrains Mono', monospace" }}>
               Five cryptic missions. Five hidden spots in the real world. Decode
               the riddle, find the location, recover the secret code. Only the
               sharpest reach the final spot.
             </p>
 
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 12,
-                marginBottom: 32,
-              }}
-            >
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 32 }}>
               {!unlocked ? (
                 <>
                   <input
@@ -584,17 +550,7 @@ export default function LandingPage({
                   }}
                 >
                   <Icon size={16} color={C} />
-                  <span
-                    style={{
-                      fontSize: 9,
-                      letterSpacing: "1.5px",
-                      color: "#fff",
-                      fontFamily: "'JetBrains Mono', monospace",
-                      fontWeight: 600,
-                      textAlign: "center",
-                      wordBreak: "break-word",
-                    }}
-                  >
+                  <span style={{ fontSize: 9, letterSpacing: "1.5px", color: "#fff", fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, textAlign: "center", wordBreak: "break-word" }}>
                     {label}
                   </span>
                 </div>
@@ -609,44 +565,17 @@ export default function LandingPage({
 
         <div className="sh-steps-grid">
           {HOW_IT_WORKS.map((s) => (
-            <div
-              key={s.num}
-              className="glass"
-              style={{ borderRadius: 12, padding: 24 }}
-            >
+            <div key={s.num} className="glass" style={{ borderRadius: 12, padding: 24 }}>
               <div
                 className="animate-num-glow"
-                style={{
-                  fontFamily: "'Orbitron', sans-serif",
-                  fontSize: 32,
-                  fontWeight: 900,
-                  color: C,
-                  textShadow: `0 0 12px ${CGLOW}`,
-                  marginBottom: 12,
-                }}
+                style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 32, fontWeight: 900, color: C, textShadow: `0 0 12px ${CGLOW}`, marginBottom: 12 }}
               >
                 {s.num}
               </div>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#fff",
-                  letterSpacing: "1px",
-                  marginBottom: 8,
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}
-              >
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", letterSpacing: "1px", marginBottom: 8, fontFamily: "'JetBrains Mono', monospace" }}>
                 {s.title}
               </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "#94a3b8",
-                  lineHeight: 1.8,
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}
-              >
+              <div style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.8, fontFamily: "'JetBrains Mono', monospace" }}>
                 {s.desc}
               </div>
             </div>
@@ -654,7 +583,7 @@ export default function LandingPage({
         </div>
       </div>
 
-    
+      {/* ── PAY MODAL ── */}
       {showPayModal && (
         <div
           onClick={() => setShowPayModal(false)}
@@ -686,33 +615,15 @@ export default function LandingPage({
               overflowY: "auto",
             }}
           >
-        
             <div>
-              <div
-                style={{
-                  fontFamily: "'Orbitron', sans-serif",
-                  fontSize: 18,
-                  fontWeight: 900,
-                  color: C,
-                  letterSpacing: "2px",
-                  marginBottom: 4,
-                }}
-              >
+              <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 18, fontWeight: 900, color: C, letterSpacing: "2px", marginBottom: 4 }}>
                 JOIN THE HUNT
               </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "#64748b",
-                  fontFamily: "'JetBrains Mono', monospace",
-                  letterSpacing: "1px",
-                }}
-              >
+              <div style={{ fontSize: 11, color: "#64748b", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "1px" }}>
                 ONE-TIME ENTRY — $9
               </div>
             </div>
 
-         
             <div
               style={{
                 background: "rgba(0,162,206,0.07)",
@@ -726,69 +637,38 @@ export default function LandingPage({
               }}
             >
               <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "#fff",
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontWeight: 700,
-                  }}
-                >
+                <div style={{ fontSize: 12, color: "#fff", fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
                   SPOTHUNT CHALLENGE
                 </div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: "#64748b",
-                    fontFamily: "'JetBrains Mono', monospace",
-                    marginTop: 2,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
+                <div style={{ fontSize: 10, color: "#64748b", fontFamily: "'JetBrains Mono', monospace", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {totalMissions} MISSIONS · TEAM: {teamName || "—"}
                 </div>
               </div>
-              <div
-                style={{
-                  fontFamily: "'Orbitron', sans-serif",
-                  fontSize: 20,
-                  fontWeight: 900,
-                  color: C,
-                  flexShrink: 0,
-                }}
-              >
+              <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 20, fontWeight: 900, color: C, flexShrink: 0 }}>
                 $9
               </div>
             </div>
 
-       
+            {/*
+              Only renders when result.applePay or result.googlePay is true.
+              Stripe auto-shows the correct button for the current browser —
+              Apple Pay on Safari/iOS, Google Pay on Chrome/Android.
+              Stripe Link (result.link) is intentionally excluded — it makes
+              canMakePayment() truthy but renders an invisible button.
+            */}
             {canUseWalletPay && paymentRequest && (
               <div>
-                <PaymentRequestButtonElement
-                  options={{
-                    paymentRequest,
-                    style: PAYMENT_REQUEST_BUTTON_STYLE,
-                  }}
-                />
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    margin: "16px 0",
-                  }}
-                >
-                  <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
-                  <span
-                    style={{
-                      fontSize: 10,
-                      color: "#64748b",
-                      fontFamily: "'JetBrains Mono', monospace",
-                      letterSpacing: "1px",
+                <div style={{ minHeight: 48 }}>
+                  <PaymentRequestButtonElement
+                    options={{
+                      paymentRequest,
+                      style: PAYMENT_REQUEST_BUTTON_STYLE,
                     }}
-                  >
+                  />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "16px 0" }}>
+                  <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
+                  <span style={{ fontSize: 10, color: "#64748b", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "1px" }}>
                     OR PAY WITH CARD
                   </span>
                   <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
@@ -796,17 +676,8 @@ export default function LandingPage({
               </div>
             )}
 
-     
             <div>
-              <div
-                style={{
-                  fontSize: 10,
-                  color: "#64748b",
-                  fontFamily: "'JetBrains Mono', monospace",
-                  letterSpacing: "2px",
-                  marginBottom: 8,
-                }}
-              >
+              <div style={{ fontSize: 10, color: "#64748b", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "2px", marginBottom: 8 }}>
                 CARD DETAILS
               </div>
               <div
@@ -820,14 +691,7 @@ export default function LandingPage({
                 <CardElement options={CARD_STYLE} />
               </div>
               {cardError && (
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "#f87171",
-                    fontFamily: "'JetBrains Mono', monospace",
-                    marginTop: 6,
-                  }}
-                >
+                <div style={{ fontSize: 11, color: "#f87171", fontFamily: "'JetBrains Mono', monospace", marginTop: 6 }}>
                   {cardError}
                 </div>
               )}

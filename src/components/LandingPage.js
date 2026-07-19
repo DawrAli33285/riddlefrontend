@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Compass, Lock, Shield, ChevronRight, Zap } from "lucide-react";
+import { Compass, Lock, Shield, Zap } from "lucide-react";
 import axios from "axios";
 import { BASE_URL } from "../baseurl";
 import {
@@ -43,7 +43,6 @@ function TerminalWidget() {
           gap: 6,
         }}
       ></div>
-
       <div
         style={{
           background: "rgba(240,245,250,0.95)",
@@ -64,40 +63,13 @@ function TerminalWidget() {
           />
           <circle cx="32" cy="24" r="10" fill="white" />
           <circle cx="32" cy="24" r="6" fill="#1a3a5c" />
-          <path
-            d="M26 24 Q32 18 38 24"
-            stroke="#1a3a5c"
-            strokeWidth="1.5"
-            fill="none"
-          />
-          <line
-            x1="32"
-            y1="18"
-            x2="32"
-            y2="14"
-            stroke="#1a3a5c"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
+          <path d="M26 24 Q32 18 38 24" stroke="#1a3a5c" strokeWidth="1.5" fill="none" />
+          <line x1="32" y1="18" x2="32" y2="14" stroke="#1a3a5c" strokeWidth="2" strokeLinecap="round" />
         </svg>
-        <span
-          style={{
-            color: "#1a3a5c",
-            fontFamily: "Georgia, serif",
-            fontWeight: 700,
-            fontSize: 18,
-            letterSpacing: "2px",
-          }}
-        >
+        <span style={{ color: "#1a3a5c", fontFamily: "Georgia, serif", fontWeight: 700, fontSize: 18, letterSpacing: "2px" }}>
           SpotHunt
         </span>
-        <span
-          style={{
-            color: "rgba(26,58,92,0.55)",
-            fontSize: 11,
-            letterSpacing: "2px",
-          }}
-        >
+        <span style={{ color: "rgba(26,58,92,0.55)", fontSize: 11, letterSpacing: "2px" }}>
           Explore. Discover. Play.
         </span>
       </div>
@@ -150,50 +122,20 @@ const RESPONSIVE_CSS = `
     gap: 16px;
     margin-top: 96px;
   }
-  .sh-hero-title {
-    font-size: 56px;
-  }
-  .sh-features-row {
-    display: flex;
-    gap: 12px;
-  }
-  .sh-terminal-wrap {
-    display: block;
-  }
+  .sh-hero-title { font-size: 56px; }
+  .sh-features-row { display: flex; gap: 12px; }
+  .sh-terminal-wrap { display: block; }
   @media (max-width: 768px) {
-    .sh-hero-grid {
-      grid-template-columns: 1fr;
-      gap: 40px;
-    }
-    .sh-steps-grid {
-      grid-template-columns: 1fr;
-      margin-top: 56px;
-      gap: 12px;
-    }
-    .sh-hero-title {
-      font-size: 36px;
-    }
-    .sh-features-row {
-      flex-wrap: wrap;
-    }
-    .sh-features-row > * {
-      flex: 1 1 calc(33% - 8px);
-      min-width: 80px;
-    }
-    .sh-terminal-wrap {
-      display: block;
-    }
-    .sh-nav-inner {
-      padding: 12px 16px !important;
-    }
-    .sh-page-wrap {
-      padding: 48px 16px !important;
-    }
+    .sh-hero-grid { grid-template-columns: 1fr; gap: 40px; }
+    .sh-steps-grid { grid-template-columns: 1fr; margin-top: 56px; gap: 12px; }
+    .sh-hero-title { font-size: 36px; }
+    .sh-features-row { flex-wrap: wrap; }
+    .sh-features-row > * { flex: 1 1 calc(33% - 8px); min-width: 80px; }
+    .sh-nav-inner { padding: 12px 16px !important; }
+    .sh-page-wrap { padding: 48px 16px !important; }
   }
   @media (max-width: 400px) {
-    .sh-hero-title {
-      font-size: 28px;
-    }
+    .sh-hero-title { font-size: 28px; }
   }
 `;
 
@@ -217,11 +159,10 @@ export default function LandingPage({
   const [cardError, setCardError] = useState("");
   const [pendingToken, setPendingToken] = useState(null);
 
+  
   const [paymentRequest, setPaymentRequest] = useState(null);
   const [canUseWalletPay, setCanUseWalletPay] = useState(false);
 
-  // Ref so the paymentmethod handler always reads the latest token
-  // without needing to recreate the payment request object.
   const pendingTokenRef = useRef(null);
   useEffect(() => {
     pendingTokenRef.current = pendingToken;
@@ -240,9 +181,6 @@ export default function LandingPage({
     }
   }, []);
 
-  // Create the payment request ONCE when stripe loads.
-  // A stable object is required — recreating it breaks PaymentRequestButtonElement
-  // and prevents Apple Pay / Google Pay from ever appearing.
   useEffect(() => {
     if (!stripe) return;
 
@@ -251,12 +189,13 @@ export default function LandingPage({
       currency: "usd",
       total: {
         label: "SpotHunt Challenge Entry",
-        amount: 900,
+        amount: 900, 
       },
       requestPayerName: true,
       requestPayerEmail: true,
     });
 
+   
     pr.canMakePayment().then((result) => {
       if (result) {
         setPaymentRequest(pr);
@@ -288,9 +227,7 @@ export default function LandingPage({
         onJoin();
       } catch (err) {
         ev.complete("fail");
-        setCardError(
-          err.response?.data?.error || "Payment failed, please try again"
-        );
+        setCardError(err.response?.data?.error || "Payment failed, please try again");
         setPaying(false);
       }
     });
@@ -298,7 +235,7 @@ export default function LandingPage({
     return () => {
       pr.off("paymentmethod");
     };
-  }, [stripe]); // only re-run if the stripe instance itself changes
+  }, [stripe]);
 
   const handleJoin = async () => {
     if (!email.trim() || !teamName.trim()) return;
@@ -360,9 +297,7 @@ export default function LandingPage({
       setShowPayModal(false);
       onJoin();
     } catch (err) {
-      setCardError(
-        err.response?.data?.error || "Payment failed, please try again"
-      );
+      setCardError(err.response?.data?.error || "Payment failed, please try again");
       setPaying(false);
     }
   };
@@ -390,7 +325,7 @@ export default function LandingPage({
 
   return (
     <div style={{ minHeight: "100vh" }}>
-      {/* ── NAV ── */}
+    
       <nav
         className="glass"
         style={{
@@ -493,7 +428,7 @@ export default function LandingPage({
         </div>
       </nav>
 
-      {/* ── MAIN CONTENT ── */}
+      
       <div
         className="sh-page-wrap"
         style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 32px" }}
@@ -719,7 +654,7 @@ export default function LandingPage({
         </div>
       </div>
 
-      {/* ── PAY MODAL ── */}
+    
       {showPayModal && (
         <div
           onClick={() => setShowPayModal(false)}
@@ -751,6 +686,7 @@ export default function LandingPage({
               overflowY: "auto",
             }}
           >
+        
             <div>
               <div
                 style={{
@@ -776,6 +712,7 @@ export default function LandingPage({
               </div>
             </div>
 
+         
             <div
               style={{
                 background: "rgba(0,162,206,0.07)",
@@ -826,7 +763,7 @@ export default function LandingPage({
               </div>
             </div>
 
-            {/* Apple Pay / Google Pay — only shown if the browser supports it */}
+       
             {canUseWalletPay && paymentRequest && (
               <div>
                 <PaymentRequestButtonElement
@@ -859,6 +796,7 @@ export default function LandingPage({
               </div>
             )}
 
+     
             <div>
               <div
                 style={{

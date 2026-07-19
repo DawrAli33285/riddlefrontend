@@ -160,9 +160,6 @@ export default function LandingPage({
   const [pendingToken, setPendingToken] = useState(null);
 
   const [paymentRequest, setPaymentRequest] = useState(null);
-  // Only true when Apple Pay OR Google Pay is specifically available
-  // (not just Stripe Link, which also makes canMakePayment() truthy
-  // but renders an invisible button)
   const [canUseWalletPay, setCanUseWalletPay] = useState(false);
 
   const pendingTokenRef = useRef(null);
@@ -184,8 +181,10 @@ export default function LandingPage({
   }, []);
 
   useEffect(() => {
+    console.log("[SpotHunt] stripe instance ready?", !!stripe);
     if (!stripe) return;
 
+    console.log("[SpotHunt] Creating paymentRequest...");
     const pr = stripe.paymentRequest({
       country: "US",
       currency: "usd",
@@ -198,18 +197,47 @@ export default function LandingPage({
     });
 
     pr.canMakePayment().then((result) => {
-      // Only show the wallet button for Apple Pay or Google Pay.
-      // result can also be { link: true } for Stripe Link — that renders
-      // an invisible button, so we explicitly exclude it here.
-      if (result && (result.applePay || result.googlePay)) {
+      // result is null if nothing is available.
+      // result can be: { applePay: true }, { googlePay: true }, { link: true }, or combinations.
+      console.log("[SpotHunt] canMakePayment() result:", result);
+      console.log("[SpotHunt] Browser:", navigator.userAgent);
+      console.log("[SpotHunt] Protocol:", window.location.protocol);
+
+      if (!result) {
+        console.warn(
+          "[SpotHunt] ❌ No wallet available. Reasons could be:\n" +
+          "  • Not on HTTPS (current: " + window.location.protocol + ")\n" +
+          "  • Apple Pay: domain not registered in Stripe Dashboard\n" +
+          "  • Apple Pay: not on Safari with a card in Apple Wallet\n" +
+          "  • Google Pay: not on Chrome with a saved card in Google account"
+        );
+        return;
+      }
+
+      if (result.applePay) {
+        console.log("[SpotHunt] ✅ Apple Pay is available");
+      }
+      if (result.googlePay) {
+        console.log("[SpotHunt] ✅ Google Pay is available");
+      }
+      if (result.link) {
+        console.log("[SpotHunt] ℹ️ Stripe Link is available (not shown — Link-only renders blank button)");
+      }
+
+      if (result.applePay || result.googlePay) {
+        console.log("[SpotHunt] ✅ Showing wallet button");
         setPaymentRequest(pr);
         setCanUseWalletPay(true);
+      } else {
+        console.warn("[SpotHunt] ❌ Only Stripe Link detected — hiding wallet button");
       }
     });
 
     pr.on("paymentmethod", async (ev) => {
+      console.log("[SpotHunt] paymentmethod event fired, type:", ev.paymentMethod.type);
       const token = pendingTokenRef.current;
       if (!token) {
+        console.error("[SpotHunt] No pendingToken — cannot complete payment");
         ev.complete("fail");
         return;
       }
@@ -230,6 +258,7 @@ export default function LandingPage({
         setShowPayModal(false);
         onJoin();
       } catch (err) {
+        console.error("[SpotHunt] Payment error:", err.response?.data || err.message);
         ev.complete("fail");
         setCardError(err.response?.data?.error || "Payment failed, please try again");
         setPaying(false);
@@ -649,13 +678,6 @@ export default function LandingPage({
               </div>
             </div>
 
-            {/*
-              Only renders when result.applePay or result.googlePay is true.
-              Stripe auto-shows the correct button for the current browser —
-              Apple Pay on Safari/iOS, Google Pay on Chrome/Android.
-              Stripe Link (result.link) is intentionally excluded — it makes
-              canMakePayment() truthy but renders an invisible button.
-            */}
             {canUseWalletPay && paymentRequest && (
               <div>
                 <div style={{ minHeight: 48 }}>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Compass, Lock, Shield, ChevronRight, Zap } from "lucide-react";
 import axios from "axios";
 import { BASE_URL } from "../baseurl";
@@ -137,7 +137,6 @@ const inputStyle = {
   boxSizing: "border-box",
 };
 
-/* ─── Inline responsive styles injected once ─── */
 const RESPONSIVE_CSS = `
   .sh-hero-grid {
     display: grid;
@@ -218,14 +217,19 @@ export default function LandingPage({
   const [cardError, setCardError] = useState("");
   const [pendingToken, setPendingToken] = useState(null);
 
-  // Apple Pay / Google Pay state
   const [paymentRequest, setPaymentRequest] = useState(null);
   const [canUseWalletPay, setCanUseWalletPay] = useState(false);
+
+  // Ref so the paymentmethod handler always reads the latest token
+  // without needing to recreate the payment request object.
+  const pendingTokenRef = useRef(null);
+  useEffect(() => {
+    pendingTokenRef.current = pendingToken;
+  }, [pendingToken]);
 
   const stripe = useStripe();
   const elements = useElements();
 
-  // Inject responsive CSS once
   useEffect(() => {
     const id = "sh-responsive-styles";
     if (!document.getElementById(id)) {
@@ -236,34 +240,33 @@ export default function LandingPage({
     }
   }, []);
 
-  // Set up the Stripe Payment Request (Apple Pay / Google Pay)
+  // Create the payment request ONCE when stripe loads.
+  // A stable object is required — recreating it breaks PaymentRequestButtonElement
+  // and prevents Apple Pay / Google Pay from ever appearing.
   useEffect(() => {
-    if (!stripe || !showPayModal) return;
-  
+    if (!stripe) return;
+
     const pr = stripe.paymentRequest({
-      country: "US", // must match your Stripe account's country
+      country: "US",
       currency: "usd",
       total: {
         label: "SpotHunt Challenge Entry",
-        amount: 900, // $9.00 in cents — keep in sync with backend price
+        amount: 900,
       },
       requestPayerName: true,
       requestPayerEmail: true,
     });
-  
-    // Check availability of the Payment Request API (Apple Pay / Google Pay / Link)
+
     pr.canMakePayment().then((result) => {
       if (result) {
         setPaymentRequest(pr);
         setCanUseWalletPay(true);
-      } else {
-        setPaymentRequest(null);
-        setCanUseWalletPay(false);
       }
     });
 
     pr.on("paymentmethod", async (ev) => {
-      if (!pendingToken) {
+      const token = pendingTokenRef.current;
+      if (!token) {
         ev.complete("fail");
         return;
       }
@@ -274,14 +277,12 @@ export default function LandingPage({
         await axios.post(
           `${BASE_URL}/user/pay`,
           { payment_method_id: ev.paymentMethod.id },
-          { headers: { Authorization: `Bearer ${pendingToken}` } }
+          { headers: { Authorization: `Bearer ${token}` } }
         );
 
         ev.complete("success");
-
-        localStorage.setItem("token", pendingToken);
+        localStorage.setItem("token", token);
         window.dispatchEvent(new Event("auth-changed"));
-
         setPaying(false);
         setShowPayModal(false);
         onJoin();
@@ -297,8 +298,7 @@ export default function LandingPage({
     return () => {
       pr.off("paymentmethod");
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stripe, showPayModal, pendingToken]);
+  }, [stripe]); // only re-run if the stripe instance itself changes
 
   const handleJoin = async () => {
     if (!email.trim() || !teamName.trim()) return;
@@ -356,7 +356,6 @@ export default function LandingPage({
 
       localStorage.setItem("token", pendingToken);
       window.dispatchEvent(new Event("auth-changed"));
-
       setPaying(false);
       setShowPayModal(false);
       onJoin();
@@ -381,11 +380,10 @@ export default function LandingPage({
     },
   };
 
-  // Styling for the Payment Request Button (Apple/Google Pay)
   const PAYMENT_REQUEST_BUTTON_STYLE = {
     paymentRequestButton: {
-      type: "default", // "default" | "donate" | "buy"
-      theme: "dark", // "dark" | "light" | "light-outline"
+      type: "default",
+      theme: "dark",
       height: "48px",
     },
   };
@@ -413,7 +411,6 @@ export default function LandingPage({
             padding: "14px 32px",
           }}
         >
-          {/* Logo */}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div
               style={{
@@ -461,7 +458,6 @@ export default function LandingPage({
             </div>
           </div>
 
-          {/* Nav links */}
           <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
             <a
               href="#home"
@@ -502,11 +498,8 @@ export default function LandingPage({
         className="sh-page-wrap"
         style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 32px" }}
       >
-        {/* Hero grid */}
         <div className="sh-hero-grid">
-          {/* Left col */}
           <div className="animate-slide-up">
-            {/* Badge */}
             <div
               style={{
                 display: "inline-flex",
@@ -531,7 +524,6 @@ export default function LandingPage({
               </span>
             </div>
 
-            {/* Title */}
             <div style={{ marginBottom: 24 }}>
               {["SPOTHUNT", "THE", "CHALLENGE"].map((word, i) => (
                 <div
@@ -551,7 +543,6 @@ export default function LandingPage({
               ))}
             </div>
 
-            {/* Tagline */}
             <p
               style={{
                 color: "#94a3b8",
@@ -567,7 +558,6 @@ export default function LandingPage({
               sharpest reach the final spot.
             </p>
 
-            {/* CTA inputs */}
             <div
               style={{
                 display: "flex",
@@ -641,7 +631,6 @@ export default function LandingPage({
               )}
             </div>
 
-            {/* Feature capsules */}
             <div className="sh-features-row">
               {FEATURES.map(({ icon: Icon, label }) => (
                 <div
@@ -678,13 +667,11 @@ export default function LandingPage({
             </div>
           </div>
 
-          {/* Right col — terminal */}
           <div className="sh-terminal-wrap animate-fade-in">
             <TerminalWidget />
           </div>
         </div>
 
-        {/* How it works */}
         <div className="sh-steps-grid">
           {HOW_IT_WORKS.map((s) => (
             <div
@@ -764,7 +751,6 @@ export default function LandingPage({
               overflowY: "auto",
             }}
           >
-            {/* Header */}
             <div>
               <div
                 style={{
@@ -790,7 +776,6 @@ export default function LandingPage({
               </div>
             </div>
 
-            {/* Summary */}
             <div
               style={{
                 background: "rgba(0,162,206,0.07)",
@@ -841,7 +826,7 @@ export default function LandingPage({
               </div>
             </div>
 
-            {/* Apple Pay / Google Pay button — shown only if supported */}
+            {/* Apple Pay / Google Pay — only shown if the browser supports it */}
             {canUseWalletPay && paymentRequest && (
               <div>
                 <PaymentRequestButtonElement
@@ -858,13 +843,7 @@ export default function LandingPage({
                     margin: "16px 0",
                   }}
                 >
-                  <div
-                    style={{
-                      flex: 1,
-                      height: 1,
-                      background: "rgba(255,255,255,0.1)",
-                    }}
-                  />
+                  <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
                   <span
                     style={{
                       fontSize: 10,
@@ -875,18 +854,11 @@ export default function LandingPage({
                   >
                     OR PAY WITH CARD
                   </span>
-                  <div
-                    style={{
-                      flex: 1,
-                      height: 1,
-                      background: "rgba(255,255,255,0.1)",
-                    }}
-                  />
+                  <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
                 </div>
               </div>
             )}
 
-            {/* Card Element */}
             <div>
               <div
                 style={{
@@ -923,7 +895,6 @@ export default function LandingPage({
               )}
             </div>
 
-            {/* Pay button */}
             <button
               onClick={handlePay}
               disabled={paying || !stripe}
@@ -946,7 +917,6 @@ export default function LandingPage({
               {paying ? "PROCESSING..." : "PAY NOW — $9"}
             </button>
 
-            {/* Cancel */}
             <button
               onClick={() => setShowPayModal(false)}
               style={{

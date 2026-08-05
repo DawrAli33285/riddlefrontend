@@ -1,13 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Compass, Lock, Shield, Zap } from "lucide-react";
 import axios from "axios";
 import { BASE_URL } from "../baseurl";
-import {
-  useStripe,
-  useElements,
-  CardElement,
-  PaymentRequestButtonElement,
-} from "@stripe/react-stripe-js";
 
 const C = "#00a2ce";
 const CGLOW = "rgba(0,162,206,0.5)";
@@ -42,7 +36,7 @@ function TerminalWidget() {
           flexWrap: "wrap",
           gap: 6,
         }}
-      ></div>
+      />
       <div
         style={{
           background: "rgba(240,245,250,0.95)",
@@ -155,20 +149,10 @@ export default function LandingPage({
   const [paying, setPaying] = useState(false);
   const [email, setEmail] = useState("");
   const [teamName, setTeamName] = useState("");
-  const [showPayModal, setShowPayModal] = useState(false);
-  const [cardError, setCardError] = useState("");
-  const [pendingToken, setPendingToken] = useState(null);
+  const [error, setError] = useState("");
+  const [userExists, setUserExists] = useState(null); // null = unknown, true = exists, false = new
+  const [checking, setChecking] = useState(false);
 
-  const [paymentRequest, setPaymentRequest] = useState(null);
-  const [canUseWalletPay, setCanUseWalletPay] = useState(false);
-
-  const pendingTokenRef = useRef(null);
-  useEffect(() => {
-    pendingTokenRef.current = pendingToken;
-  }, [pendingToken]);
-
-  const stripe = useStripe();
-  const elements = useElements();
 
   useEffect(() => {
     const id = "sh-responsive-styles";
@@ -181,181 +165,98 @@ export default function LandingPage({
   }, []);
 
   useEffect(() => {
-    console.log("[SpotHunt] stripe instance ready?", !!stripe);
-    if (!stripe) return;
-
-    console.log("[SpotHunt] Creating paymentRequest...");
-    const pr = stripe.paymentRequest({
-      country: "US",
-      currency: "usd",
-      total: {
-        label: "SpotHunt Challenge Entry",
-        amount: 900,
-      },
-      requestPayerName: true,
-      requestPayerEmail: true,
-    });
-
-    pr.canMakePayment().then((result) => {
-      // result is null if nothing is available.
-      // result can be: { applePay: true }, { googlePay: true }, { link: true }, or combinations.
-      console.log("[SpotHunt] canMakePayment() result:", result);
-      console.log("[SpotHunt] Browser:", navigator.userAgent);
-      console.log("[SpotHunt] Protocol:", window.location.protocol);
-
-      if (!result) {
-        console.warn(
-          "[SpotHunt] ❌ No wallet available. Reasons could be:\n" +
-          "  • Not on HTTPS (current: " + window.location.protocol + ")\n" +
-          "  • Apple Pay: domain not registered in Stripe Dashboard\n" +
-          "  • Apple Pay: not on Safari with a card in Apple Wallet\n" +
-          "  • Google Pay: not on Chrome with a saved card in Google account"
-        );
-        return;
-      }
-
-      if (result.applePay) {
-        console.log("[SpotHunt] ✅ Apple Pay is available");
-      }
-      if (result.googlePay) {
-        console.log("[SpotHunt] ✅ Google Pay is available");
-      }
-      if (result.link) {
-        console.log("[SpotHunt] ℹ️ Stripe Link is available (not shown — Link-only renders blank button)");
-      }
-
-      if (result.applePay || result.googlePay) {
-        console.log("[SpotHunt] ✅ Showing wallet button");
-        setPaymentRequest(pr);
-        setCanUseWalletPay(true);
-      } else {
-        console.warn("[SpotHunt] ❌ Only Stripe Link detected — hiding wallet button");
-      }
-    });
-
-    pr.on("paymentmethod", async (ev) => {
-      console.log("[SpotHunt] paymentmethod event fired, type:", ev.paymentMethod.type);
-      const token = pendingTokenRef.current;
-      if (!token) {
-        console.error("[SpotHunt] No pendingToken — cannot complete payment");
-        ev.complete("fail");
-        return;
-      }
-      setPaying(true);
-      setCardError("");
-
-      try {
-        await axios.post(
-          `${BASE_URL}/user/pay`,
-          { payment_method_id: ev.paymentMethod.id },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        ev.complete("success");
-        localStorage.setItem("token", token);
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment") !== "success") return;
+  
+    window.history.replaceState({}, "", window.location.pathname);
+  
+    const savedEmail = localStorage.getItem("pending_email");
+    const savedTeam = localStorage.getItem("pending_team");
+    if (!savedEmail || !savedTeam) return;
+  
+  
+    axios
+      .post(`${BASE_URL}/user/auth`, { email: savedEmail, team_name: savedTeam })
+      .then(({ data }) => {
+        localStorage.setItem("token", data.token);
+        localStorage.removeItem("pending_email");
+        localStorage.removeItem("pending_team");
         window.dispatchEvent(new Event("auth-changed"));
-        setPaying(false);
-        setShowPayModal(false);
         onJoin();
-      } catch (err) {
-        console.error("[SpotHunt] Payment error:", err.response?.data || err.message);
-        ev.complete("fail");
-        setCardError(err.response?.data?.error || "Payment failed, please try again");
-        setPaying(false);
-      }
-    });
+      })
+      .catch(() => {
+     
+        setError("Verifying payment... please refresh in a few seconds.");
+      });
+  }, [onJoin]);
 
-    return () => {
-      pr.off("paymentmethod");
-    };
-  }, [stripe]);
+  // Check if user already exists whenever both fields are filled
+  useEffect(() => {
+    if (!email.trim() || !teamName.trim()) {
+      setUserExists(null);
+      return;
+    }
+    let cancelled = false;
+    setChecking(true);
+    setUserExists(null);
+    axios
+      .post(`${BASE_URL}/user/auth`, { email: email.trim(), team_name: teamName.trim() })
+      .then(({ data }) => {
+        if (!cancelled) {
+          setUserExists(!!data.game_unlocked);
+          setChecking(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setUserExists(false);
+          setChecking(false);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [email, teamName]);
 
   const handleJoin = async () => {
     if (!email.trim() || !teamName.trim()) return;
     setPaying(true);
-    setCardError("");
-
+    setError("");
+  
     try {
+    
       const authRes = await axios.post(`${BASE_URL}/user/auth`, {
         email,
         team_name: teamName,
       });
-
       const { token, game_unlocked } = authRes.data;
-
+  
       if (game_unlocked) {
         localStorage.setItem("token", token);
         window.dispatchEvent(new Event("auth-changed"));
         setPaying(false);
         onJoin();
-      } else {
-        setPendingToken(token);
-        setPaying(false);
-        setShowPayModal(true);
+        return;
       }
-    } catch (err) {
-      setCardError(err.response?.data?.error || "Something went wrong");
-      setPaying(false);
+    } catch {
+     
     }
-  };
-
-  const handlePay = async () => {
-    if (!stripe || !elements || !pendingToken) return;
-    setPaying(true);
-    setCardError("");
-
-    const card = elements.getElement(CardElement);
-    const { error, paymentMethod } = await stripe.createPaymentMethod({
-      type: "card",
-      card,
-      billing_details: { email },
-    });
-
-    if (error) {
-      setCardError(error.message);
-      setPaying(false);
-      return;
-    }
-
+  
     try {
-      await axios.post(
-        `${BASE_URL}/user/pay`,
-        { payment_method_id: paymentMethod.id },
-        { headers: { Authorization: `Bearer ${pendingToken}` } }
-      );
-
-      localStorage.setItem("token", pendingToken);
-      window.dispatchEvent(new Event("auth-changed"));
-      setPaying(false);
-      setShowPayModal(false);
-      onJoin();
+    
+      localStorage.setItem("pending_email", email);
+      localStorage.setItem("pending_team", teamName);
+  
+     
+      const checkoutRes = await axios.post(`${BASE_URL}/user/pay`, {
+        email,
+        team_name: teamName,
+      });
+  
+      window.location.href = checkoutRes.data.url;
     } catch (err) {
-      setCardError(err.response?.data?.error || "Payment failed, please try again");
+      setError(err.response?.data?.error || "Something went wrong");
       setPaying(false);
     }
   };
-
-  const CARD_STYLE = {
-    style: {
-      base: {
-        color: "#fff",
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: "13px",
-        letterSpacing: "1px",
-        "::placeholder": { color: "#64748b" },
-      },
-      invalid: { color: "#f87171" },
-    },
-  };
-
-  const PAYMENT_REQUEST_BUTTON_STYLE = {
-    paymentRequestButton: {
-      type: "default",
-      theme: "dark",
-      height: "48px",
-    },
-  };
-
   return (
     <div style={{ minHeight: "100vh" }}>
       {/* ── NAV ── */}
@@ -515,27 +416,73 @@ export default function LandingPage({
                     />
                   )}
                   {email.trim() && teamName.trim() && (
-                    <button
-                      onClick={handleJoin}
-                      disabled={paying}
-                      className="animate-pulse-glow"
-                      style={{
-                        padding: "14px 28px",
-                        background: C,
-                        color: "#0a1628",
-                        fontWeight: 700,
-                        fontSize: 12,
-                        letterSpacing: "2px",
-                        border: "none",
-                        borderRadius: 6,
-                        cursor: paying ? "not-allowed" : "pointer",
-                        fontFamily: "'Orbitron', sans-serif",
-                        opacity: paying ? 0.7 : 1,
-                        width: "100%",
-                      }}
-                    >
-                      {paying ? "PROCESSING..." : "JOIN THE HUNT — $9"}
-                    </button>
+                    checking ? (
+                      <button
+                        disabled
+                        style={{
+                          padding: "14px 28px",
+                          background: "rgba(0,162,206,0.3)",
+                          color: "#0a1628",
+                          fontWeight: 700,
+                          fontSize: 12,
+                          letterSpacing: "2px",
+                          border: "none",
+                          borderRadius: 6,
+                          cursor: "not-allowed",
+                          fontFamily: "'Orbitron', sans-serif",
+                          width: "100%",
+                        }}
+                      >
+                        CHECKING...
+                      </button>
+                    ) : userExists ? (
+                      <button
+                        onClick={onJoin}
+                        className="animate-pulse-glow"
+                        style={{
+                          padding: "14px 28px",
+                          background: C,
+                          color: "#0a1628",
+                          fontWeight: 700,
+                          fontSize: 12,
+                          letterSpacing: "2px",
+                          border: "none",
+                          borderRadius: 6,
+                          cursor: "pointer",
+                          fontFamily: "'Orbitron', sans-serif",
+                          width: "100%",
+                        }}
+                      >
+                        CONTINUE MISSION
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleJoin}
+                        disabled={paying}
+                        className="animate-pulse-glow"
+                        style={{
+                          padding: "14px 28px",
+                          background: C,
+                          color: "#0a1628",
+                          fontWeight: 700,
+                          fontSize: 12,
+                          letterSpacing: "2px",
+                          border: "none",
+                          borderRadius: 6,
+                          cursor: paying ? "not-allowed" : "pointer",
+                          fontFamily: "'Orbitron', sans-serif",
+                          opacity: paying ? 0.7 : 1,
+                          width: "100%",
+                        }}
+                      >
+                        {paying ? "REDIRECTING TO CHECKOUT..." : "JOIN THE HUNT — $9"}
+                      </button>
+                    )
+                  )}
+                  {error && (
+                    <div style={{ fontSize: 11, color: "#f87171", fontFamily: "'JetBrains Mono', monospace" }}>
+                      {error}
+                    </div>
                   )}
                 </>
               ) : (
@@ -611,153 +558,6 @@ export default function LandingPage({
           ))}
         </div>
       </div>
-
-      {/* ── PAY MODAL ── */}
-      {showPayModal && (
-        <div
-          onClick={() => setShowPayModal(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 100,
-            background: "rgba(0,0,0,0.7)",
-            backdropFilter: "blur(4px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 16,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="glass"
-            style={{
-              width: "100%",
-              maxWidth: 420,
-              borderRadius: 16,
-              padding: "28px 20px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 20,
-              boxSizing: "border-box",
-              maxHeight: "90vh",
-              overflowY: "auto",
-            }}
-          >
-            <div>
-              <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 18, fontWeight: 900, color: C, letterSpacing: "2px", marginBottom: 4 }}>
-                JOIN THE HUNT
-              </div>
-              <div style={{ fontSize: 11, color: "#64748b", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "1px" }}>
-                ONE-TIME ENTRY — $9
-              </div>
-            </div>
-
-            <div
-              style={{
-                background: "rgba(0,162,206,0.07)",
-                border: "1px solid rgba(0,162,206,0.2)",
-                borderRadius: 8,
-                padding: "12px 16px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 12, color: "#fff", fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
-                  SPOTHUNT CHALLENGE
-                </div>
-                <div style={{ fontSize: 10, color: "#64748b", fontFamily: "'JetBrains Mono', monospace", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {totalMissions} MISSIONS · TEAM: {teamName || "—"}
-                </div>
-              </div>
-              <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 20, fontWeight: 900, color: C, flexShrink: 0 }}>
-                $9
-              </div>
-            </div>
-
-            {canUseWalletPay && paymentRequest && (
-              <div>
-                <div style={{ minHeight: 48 }}>
-                  <PaymentRequestButtonElement
-                    options={{
-                      paymentRequest,
-                      style: PAYMENT_REQUEST_BUTTON_STYLE,
-                    }}
-                  />
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "16px 0" }}>
-                  <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
-                  <span style={{ fontSize: 10, color: "#64748b", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "1px" }}>
-                    OR PAY WITH CARD
-                  </span>
-                  <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
-                </div>
-              </div>
-            )}
-
-            <div>
-              <div style={{ fontSize: 10, color: "#64748b", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "2px", marginBottom: 8 }}>
-                CARD DETAILS
-              </div>
-              <div
-                style={{
-                  background: "rgba(0,162,206,0.07)",
-                  border: "1px solid rgba(0,162,206,0.35)",
-                  borderRadius: 6,
-                  padding: "14px 16px",
-                }}
-              >
-                <CardElement options={CARD_STYLE} />
-              </div>
-              {cardError && (
-                <div style={{ fontSize: 11, color: "#f87171", fontFamily: "'JetBrains Mono', monospace", marginTop: 6 }}>
-                  {cardError}
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={handlePay}
-              disabled={paying || !stripe}
-              className="animate-pulse-glow"
-              style={{
-                padding: "14px",
-                background: C,
-                color: "#0a1628",
-                fontWeight: 700,
-                fontSize: 12,
-                letterSpacing: "2px",
-                border: "none",
-                borderRadius: 6,
-                cursor: paying ? "not-allowed" : "pointer",
-                fontFamily: "'Orbitron', sans-serif",
-                opacity: paying ? 0.7 : 1,
-                width: "100%",
-              }}
-            >
-              {paying ? "PROCESSING..." : "PAY NOW — $9"}
-            </button>
-
-            <button
-              onClick={() => setShowPayModal(false)}
-              style={{
-                fontSize: 11,
-                color: "#64748b",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                fontFamily: "'JetBrains Mono', monospace",
-                letterSpacing: "1px",
-              }}
-            >
-              CANCEL
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

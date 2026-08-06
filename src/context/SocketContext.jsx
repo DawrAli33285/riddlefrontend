@@ -25,6 +25,11 @@ export function SocketProvider({ children }) {
     }
     const newSocket = io(BASE_URL);
     newSocket.emit("user_connected", { token });
+    newSocket.on('payment_success', ({ token }) => {
+      localStorage.setItem('token', token)
+      window.dispatchEvent(new Event('auth-changed'))
+      window.dispatchEvent(new Event('payment-success'))
+    })
     setSocket(newSocket);
     return () => newSocket.disconnect();
   }, [token]);
